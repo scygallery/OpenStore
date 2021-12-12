@@ -1,9 +1,7 @@
 import React from "react";
 import Web3Modal from "web3modal";
-import { nftaddress, nftmarketaddress } from "../config";
+import { nftaddress, nftmarketaddress, collectionContract } from "../config";
 import Card from "./Card";
-import NFT from "../artifacts/contracts/NFT.sol/NFT.json";
-import NFTMarket from "../artifacts/contracts/NFTMarket.sol/NFTMarket.json";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
@@ -23,41 +21,25 @@ const ItemList = () => {
   }, [filterCategory]);
 
   const getItems = async (category) => {
-    const provider = new ethers.providers.JsonRpcProvider();
-    const tokenContract = new ethers.Contract(nftaddress, NFT.abi, provider);
-    const marketContract = new ethers.Contract(
-      nftmarketaddress,
-      NFTMarket.abi,
-      provider
-    );
-    let data;
-    if (category == "All") {
-      data = await marketContract.getMarketItems();
-    } else {
-      data = await marketContract.getItemsByCategory(category);
-    }
-
-    console.log(data);
-
+    const getItemMetaByIdUrl = `https://ethereum-api.rarible.org/v0.1/nft/items/byCollection?collection=${collectionContract}&status=ACTIVE&size=100`;
+    const getItemMetaResult = await fetch(getItemMetaByIdUrl);
+    const itemsJson = await getItemMetaResult.json();
     let newItems = await Promise.all(
-      data.map(async (d) => {
-        const tokenUri = await tokenContract.tokenURI(d.tokenId);
-        const meta = await axios.get(tokenUri);
-        const price = ethers.utils.formatUnits(d.price.toString(), "ether");
-
+      itemsJson.items.map(async (d) => {
+        // const tokenUri = await tokenContract.tokenURI(d.tokenId);
+        const price = "1000 ether"; //ethers.utils.formatUnits(d.take.valueDecimal.toString(), "ether");
+        const meta = d.meta;
         return {
           price,
-          tokenId: d.tokenId.toNumber(),
-          seller: d.seller,
-          owner: d.owner,
-          image: meta.data.image,
-          name: meta.data.name,
-          description: meta.data.description,
+          tokenId: parseInt(d.tokenId, 10),
+          seller: "",
+          owner: d.owners.join(", "),
+          image: meta.image.url.PREVIEW,
+          name: meta.name,
+          description: meta.description,
         };
       })
     );
-    console.log(newItems);
-
     setItems(newItems);
   };
 
